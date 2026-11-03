@@ -5,7 +5,7 @@ import { Routes, Route, Link, } from 'react-router-dom';
 
 function Home() {
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center">
+    <div className="w-full  flex flex-col items-start bg-(--bg-primary) text-(--text-primary) p-8 md:p-16 lg:p-24">
       <h1 className="text-4xl font-bold mb-4">Welcome to CarlVision</h1>
       <p className="text-lg mb-8">Upload an image and apply various filters to it.</p>
       <Link to="/app" className="px-6 py-3 bg-blue-500 text-white rounded hover:bg-blue-600 transition duration-300">
@@ -19,7 +19,10 @@ function ImagePageBase() {
   const [submitted, setSubmitted] = useState(false)
   const [myValue, setMyValue] = useState({})
   const [valueConfigs, setValueConfigs] = useState([])
-
+  const [image, setImage] = useState(null)
+  const [uploadedImage, setUploadedImage] = useState(null);
+  const [imageAttributes, setImageAttributes] = useState(null);
+  
   useEffect(() => {
     if(submitted){
       console.log("value ",myValue)
@@ -41,10 +44,7 @@ function ImagePageBase() {
         } 
         console.log("Uploaded configs! (around line:136)")
         localStorage.setItem("configs", JSON.stringify(valueConfigs))
-
       }
-      
-      
     }catch (err){
       console.log("Something went wrong with uploading settings! ", err)
       console.log("valueconfig: ", valueConfigs)
@@ -54,11 +54,83 @@ function ImagePageBase() {
     }
   }, [valueConfigs])
 
+  useEffect(() =>{
+    if (imageAttributes){
+      console.log("attributes: ", imageAttributes);
+      localStorage.setItem("Attributes", JSON.stringify({channels: imageAttributes.Channels, dimensions: [imageAttributes.Dimensions[0], imageAttributes.Dimensions[1]]}))
+    }
+  }, [imageAttributes])
+
+  const uploadImage = async () => {
+    const stored = localStorage.getItem("configs");
+    let config = stored ? JSON.parse(stored) : null;
+    if (!image || !config) return;
+    if (config?.CF && config.CF.threshold1 === undefined && config.CF.threshold2 !== undefined) {
+      const updated_configs = {...config, CF:{...config.CF, threshold1:100}}
+      config = updated_configs
+      console.log("log dog")
+      
+      localStorage.setItem("configs", JSON.stringify(config))
+    }
+    console.log("hog ", config)
+    const formData = new FormData();
+    formData.append("image", image);
+    formData.append("config", JSON.stringify(config));
+    try{
+      const res = await axios.post('http://localhost:8080/api/upload', formData,{responseType:"blob"})
+      console.log("Recieved processed image response! ", res.data.result)
+      const imageURL = URL.createObjectURL(res.data);
+      setUploadedImage(imageURL);
+      setImageAttributes(res.data.result)
+    }catch (err){
+      setError('Error uploading image:', err)
+    } finally{
+      setPressed(prev => !prev)
+    } 
+  }
+  
+  const handleImageChange = (e) => {
+    e.preventDefault()
+    try{
+      const file = e.target.files[0]
+      if (file) setImage(file);
+    } catch (err) {
+      console.error("ts barnicals (from handleImageChange)")
+    }
+    
+  }
+
   return (
     <div id="content" className="w-[95%] mx-auto flex flex-row">
           <section id="image_" className="flex-1 min-w-0">
             <div className=" w-full  p-3">
-              <ImageDropper upload_pressed={submitted}/>      
+              <div className="w-full max-h-[720px] flex flex-row justify-between gap-2.5">
+                <div className="w-full h-full max-w-[50%] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
+                  <label htmlFor="fileInput" className=" flex flex-col">
+                    Drop your image here: &nbsp; <input type="file" id="fileInput" accept="image/*"  onChange={handleImageChange} /> 
+                  </label>
+                  
+                  {image && <img src={URL.createObjectURL(image)} alt="Dropped" className="object-scale-down  max-h-[520px] p-4" />}
+                  {imageAttributes && (
+                    <div className="mt-4">
+                      <h3>Image Attributes:</h3>
+                      <p>Channels: {imageAttributes.Channels}</p>
+                      <p>Dimensions: {imageAttributes.Dimensions[0]} x {imageAttributes.Dimensions[1]}</p>
+                    </div>
+                  )}
+                </div>
+                <div className="w-full h-full max-w-[50%] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-solid border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
+                  
+                  {!uploadedImage && (
+                  <label>
+                      Your image will show up here!
+                  </label>
+                  )}
+                  {uploadedImage && (
+                  <img src={uploadedImage} alt="Processed" className="object-scale-down  max-h-[520px] p-4"/>
+                  )}
+                </div>
+              </div>
             </div>
           </section>
           <section id="inputs" className=" w-[360px] shrink-0">
@@ -154,97 +226,6 @@ function ImagePageBase() {
 }
 
 
-function ImageDropper({ upload_pressed=false}) {
-  const [image, setImage] = useState(null)
-  const [uploadedImage, setUploadedImage] = useState(null);
-  const [imageAttributes, setImageAttributes] = useState(null);
-  const [pressed, setPressed] = useState(null);
-  const [error, setError] = useState(null);
-  
-
-  useEffect(() =>{
-    if (imageAttributes){
-      console.log("attributes: ", imageAttributes);
-      localStorage.setItem("Attributes", JSON.stringify({channels: imageAttributes.Channels, dimensions: [imageAttributes.Dimensions[0], imageAttributes.Dimensions[1]]}))
-    }
-  }, [imageAttributes])
-
-  const uploadImage = async () => {
-    const stored = localStorage.getItem("configs");
-    let config = stored ? JSON.parse(stored) : null;
-    if (!image || !config) return;
-    if (config?.CF && config.CF.threshold1 === undefined && config.CF.threshold2 !== undefined) {
-      const updated_configs = {...config, CF:{...config.CF, threshold1:100}}
-      config = updated_configs
-      console.log("log dog")
-      
-      localStorage.setItem("configs", JSON.stringify(config))
-    }
-    console.log("hog ", config)
-    const formData = new FormData();
-    formData.append("image", image);
-    formData.append("config", JSON.stringify(config));
-    try{
-      const res = await axios.post('http://localhost:8080/api/upload', formData,{responseType:"blob"})
-      console.log("Recieved processed image response! ", res.data.result)
-      const imageURL = URL.createObjectURL(res.data);
-      setUploadedImage(imageURL);
-      setImageAttributes(res.data.result)
-    }catch (err){
-      setError('Error uploading image:', err)
-    } finally{
-      setPressed(prev => !prev)
-    } 
-  }
-  
-
-  useEffect(() => {
-    if(upload_pressed) {
-      uploadImage()
-    }
-  }, [upload_pressed])  
-
-  const handleImageChange = (e) => {
-    e.preventDefault()
-    try{
-      const file = e.target.files[0]
-      if (file) setImage(file);
-    } catch (err) {
-      console.error("ts barnicals (from handleImageChange)")
-    }
-    
-  }
-  return (
-    <div className="w-full flex flex-row justify-between gap-2.5">
-      <div className="w-[85%] h-[720px] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
-        <label htmlFor="fileInput" className=" flex flex-col">
-          Drop your image here: &nbsp; <input type="file" id="fileInput" accept="image/*"  onChange={handleImageChange} /> 
-        </label>
-        
-        {image && <img src={URL.createObjectURL(image)} alt="Dropped" className="max-w-[720px] max-h-[520px] p-4" />}
-        {imageAttributes && (
-          <div className="mt-4">
-            <h3>Image Attributes:</h3>
-            <p>Channels: {imageAttributes.Channels}</p>
-            <p>Dimensions: {imageAttributes.Dimensions[0]} x {imageAttributes.Dimensions[1]}</p>
-          </div>
-        )}
-      </div>
-      <div className="w-[85%] h-[720px] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-solid border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
-        
-        {!uploadedImage && (
-        <label>
-            Your image will show up here!
-        </label>
-        )}
-        {uploadedImage && (
-        <img src={uploadedImage} alt="Processed" className="max-w-[720px] max-h-[520px] p-4"/>
-        )}
-      </div>
-    </div>
-  )
-}
-
 function App() {
   const [apiData, setApiData] = useState(null)
   
@@ -269,7 +250,7 @@ function App() {
           </div>
         </section>
 
-        <section id="display-area">
+        <section id="display-area" className="w-full min-h-[calc(100vh-54px)] bg-(--bg-primary) text-(--text-primary)">
           <Routes>
             <Route path="/" element={<Home/>}/>
             <Route path="/app" element={<ImagePageBase/>}/>

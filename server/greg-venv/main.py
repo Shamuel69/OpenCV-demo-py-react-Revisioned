@@ -1,7 +1,7 @@
 from flask import Flask, jsonify, request, send_file
 import io
 from flask_cors import CORS
-from Library.CV2_testing import CV2attributes
+from CV2_testing import CV2attributes
 import cv2 
 import numpy as np
 import json
