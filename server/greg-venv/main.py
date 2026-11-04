@@ -20,14 +20,6 @@ def sendimage(image, data):
 
     return cv2_attributes.result
 
-def fishcheck(fish: str) -> bool:
-    # Check if the fish is in the list of valid fish
-    if not fish:
-        return False
-    fish = fish.lower()
-
-    valid_fish = ["salmon", "tuna", "trout", "cod", "herring"]
-    return fish in valid_fish
 
 @app.route("/api/upload", methods=["POST"])
 def upload_image():
@@ -37,9 +29,9 @@ def upload_image():
     # if "config" not in request.files:
     #     return jsonify({"error": "No config data provided"}), 400
 
-    print("happy", request.files)
     file = request.files["image"]
-    data = request.form.get("config", '{}')
+    data = request.form.get("config")
+    print("request: ", data)
 
     try:
         config = json.loads(data)

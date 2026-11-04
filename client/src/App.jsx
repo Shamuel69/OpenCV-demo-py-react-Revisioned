@@ -16,43 +16,19 @@ function Home() {
 }
 
 function ImagePageBase() {
-  const [submitted, setSubmitted] = useState(false)
   const [myValue, setMyValue] = useState({})
-  const [valueConfigs, setValueConfigs] = useState([])
   const [image, setImage] = useState(null)
   const [uploadedImage, setUploadedImage] = useState(null);
   const [imageAttributes, setImageAttributes] = useState(null);
-  
-  useEffect(() => {
-    if(submitted){
-      console.log("value ",myValue)
-      setValueConfigs(myValue)
-    }
-  }, [submitted])
+  const [error, setError] = useState(null);
 
   useEffect(() => {
-    try{
-      if (!valueConfigs || valueConfigs.length < 1) return;
-      if (submitted){
-        const configs = localStorage.getItem("configs") || {};
-        if (configs.length > 0) {
-          localStorage.removeItem("configs");
-          localStorage.setItem("configs", JSON.stringify(valueConfigs))
-          console.log("Uploaded configs! (around line:136)")
-
-          return
-        } 
-        console.log("Uploaded configs! (around line:136)")
-        localStorage.setItem("configs", JSON.stringify(valueConfigs))
-      }
-    }catch (err){
-      console.log("Something went wrong with uploading settings! ", err)
-      console.log("valueconfig: ", valueConfigs)
-
-    }finally{
-      console.log("frog")
-    }
-  }, [valueConfigs])
+    if (!image) return;
+    console.log("value: ", myValue, )
+    // honestly just make it submit when theres a value change. its going to be much easier that way 
+    const timer = setTimeout(() => { 
+    }, 500);
+  }, [myValue, image])
 
   useEffect(() =>{
     if (imageAttributes){
@@ -61,34 +37,43 @@ function ImagePageBase() {
     }
   }, [imageAttributes])
 
-  const uploadImage = async () => {
-    const stored = localStorage.getItem("configs");
-    let config = stored ? JSON.parse(stored) : null;
-    if (!image || !config) return;
-    if (config?.CF && config.CF.threshold1 === undefined && config.CF.threshold2 !== undefined) {
-      const updated_configs = {...config, CF:{...config.CF, threshold1:100}}
-      config = updated_configs
-      console.log("log dog")
-      
-      localStorage.setItem("configs", JSON.stringify(config))
-    }
-    console.log("hog ", config)
-    const formData = new FormData();
+  const uploadImageOnSubmit = async (e) => {
+    e.preventDefault();
+    const formData = new FormData(e.target);
+    const configs = Object.fromEntries(
+      formData.entries()
+    );
+    const totalconfigs = {};
+    const fixedConfigs = {};
+
+    totalconfigs.GB = {name: "Gaussian Blur", kernalsize: Number(configs.gaussianBlurKernalSize)};
+    totalconfigs.MB = {name: "Median Blur", kernalsize: Number(configs.medianBlurKernalSize)};
+    totalconfigs.BB = {name: "Bilateral Filter", diameter: Number(configs.bilateralBlurDiameter), sigmaColor: Number(configs.bilateralBlurSigmaColor), sigmaSpace: Number(configs.bilateralBlurSigmaSpace)};
+    totalconfigs.CF = {name: "Canny Filter", threshold1: Number(configs.cannyFilterThreshold1), threshold2: Number(configs.cannyFilterThreshold2)};
+    
+    Object.keys(totalconfigs).forEach((key) => {
+      Object.keys(totalconfigs[key]).forEach((subkey) => {
+        if (typeof totalconfigs[key][subkey] === 'number' && totalconfigs[key][subkey] > 1) {
+            fixedConfigs[key] = {...totalconfigs[key]}; 
+          }
+        })
+      }
+    );
+    
     formData.append("image", image);
-    formData.append("config", JSON.stringify(config));
+    formData.append("config", JSON.stringify(fixedConfigs));
+
     try{
-      const res = await axios.post('http://localhost:8080/api/upload', formData,{responseType:"blob"})
+      const res = await axios.post('http://localhost:8080/api/upload', formData, {responseType:"blob"})
       console.log("Recieved processed image response! ", res.data.result)
       const imageURL = URL.createObjectURL(res.data);
       setUploadedImage(imageURL);
       setImageAttributes(res.data.result)
     }catch (err){
       setError('Error uploading image:', err)
-    } finally{
-      setPressed(prev => !prev)
-    } 
+    }
   }
-  
+
   const handleImageChange = (e) => {
     e.preventDefault()
     try{
@@ -101,7 +86,7 @@ function ImagePageBase() {
   }
 
   return (
-    <div id="content" className="w-[95%] mx-auto flex flex-row">
+    <div id="content" className="w-[95%] mx-auto flex flex-row gap-2.5">
           <section id="image_" className="flex-1 min-w-0">
             <div className=" w-full  p-3">
               <div className="w-full max-h-[720px] flex flex-row justify-between gap-2.5">
@@ -134,92 +119,124 @@ function ImagePageBase() {
             </div>
           </section>
           <section id="inputs" className=" w-[360px] shrink-0">
-            <div className="w-full h-full border-l-2 shadow-2xl">
-              <h3 className="p-2">Configurations:</h3>
-              <div className="w-full mx-auto flex flex-col gap-1">
-                <div className="flex flex-col  p-2">
-                  <label className="text-lg">Gausssian Blur</label>
-                  <div className="flex flex-col p-1 ">
-                    <label>Kernal size</label>
-                    <div className="flex flex-row mx-auto w-[80%] justify-between">
-                      <p>1</p>
-                      <p>{myValue.GB?.kernalsize ?? 1}</p>
-                      <p>31</p>
-                    </div>
-                    {/* setValueConfigs({name: "Gaussian Blur", kernalsize: Number(e.target.value)}) && console.log(Number(e.target.value)) && */}
-                    <input type="range" min={1} max={31} step={2} value={myValue.GB?.kernalsize ?? 1} onChange={(e => setMyValue({...myValue, GB:{name: "Gaussian Blur", kernalsize: Number(e.target.value)} }) )} className= "w-[80%] mx-auto cursor-pointer"/>
-                  </div>
+            <form onSubmit={uploadImageOnSubmit} className="w-full h-full flex flex-col border-l border-(--border) bg-(--bg-primary) shadow-2xl p-4 gap-4 overflow-y-auto">
+              <div className="flex items-center justify-between border-b border-(--border) pb-3">
+                <div>
+                  <h3 className="text-lg font-semibold text-(--text-primary)">Configurations</h3>
+                  <p className="text-xs text-(--text-muted)">Adjust image processing parameters</p>
                 </div>
-                <div className="flex flex-col p-2">
-
-                  <label className="text-lg">Median Blur</label>
-                  <div className="flex flex-col p-1 ">
-                    <label>Kernal size</label>
-                    <div className="flex flex-row mx-auto w-[80%] justify-between">
-                      <p>1</p>
-                      <p>{myValue.MB?.kernalsize ?? 1}</p>
-                      <p>31</p>
-                    </div>
-                    <input type="range" min={1} max={31} step={2} value={myValue.MB?.kernalsize ?? 1} onChange={(e => setMyValue({...myValue, MB:{name: "Median Blur", kernalsize: Number(e.target.value)} }) )} className= "w-[80%] mx-auto cursor-pointer"/>
-                  
-                  </div>
-                </div>
-                <div className="flex flex-col p-2">
-                  <label className="text-lg">Bilateral Blur</label>
-                  <div className="flex flex-col p-1 ">
-                    <label>Diameter</label>
-                    <div className="flex flex-row mx-auto w-[80%] justify-between">
-                      <p>1</p>
-                      <p>{myValue.BB?.diameter ?? 1}</p>
-                      <p>15</p>
-                    </div>
-                    <input type="range" min={1} max={15} step={2} value={myValue.BB?.diameter ?? 1} onChange={(e => setMyValue({...myValue, BB:{...myValue.BB,name: "Bilateral Filter", diameter: Number(e.target.value)}}) )} className= "w-[80%] mx-auto cursor-pointer"/>
-
-                    <label>Sigma Color</label>
-                    <div className="flex flex-row mx-auto w-[80%] justify-between">
-                      <p>1</p>
-                      <p>{myValue.BB?.sigmaColor ?? 1}</p>
-                      <p>150</p>
-                    </div>
-                    <input type="range" min={1} max={150} step={2} value={myValue.BB?.sigmaColor ?? 1} onChange={(e => setMyValue({...myValue, BB:{...myValue.BB, name: "Bilateral Filter", sigmaColor: Number(e.target.value), } }) )} className= "w-[80%] mx-auto cursor-pointer"/>
-
-                    <label>Sigma Space</label>
-                    <div className="flex flex-row mx-auto w-[80%] justify-between">
-                      <p>1</p>
-                      <p>{myValue.BB?.sigmaSpace ?? 1}</p>
-                      <p>150</p>
-                    </div>
-                    <input type="range" min={1} max={150} step={2} value={myValue.BB?.sigmaSpace ?? 1} onChange={(e => setMyValue({...myValue, BB:{...myValue.BB, name: "Bilateral Filter", sigmaSpace: Number(e.target.value)} }) )} className= "w-[80%] mx-auto cursor-pointer"/>
-                  </div>
-                </div>           
-
-                <div className="flex flex-col p-2">
-                  <label className="text-lg">Canny Filter</label>
-                  <div className="flex flex-col p-1 ">
-                    <label>Lower Threshold</label>
-                    <div className="flex flex-row mx-auto w-[80%] justify-between">
-                      <p>1</p>
-                      <p>{myValue.CF?.threshold1 ?? 1}</p>
-                      <p>250</p>
-                    </div>
-                    <input type="range" min={1} max={250} step={2} value={myValue.CF?.threshold1 ?? 1} onChange={(e => setMyValue({...myValue, CF:{...myValue.CF,name: "Canny Filter", threshold1: Number(e.target.value)}}) )} className= "w-[80%] mx-auto cursor-pointer"/>
-
-                    <label>Upper Threshold</label>
-                    <div className="flex flex-row mx-auto w-[80%] justify-between">
-                      <p>1</p>
-                      <p>{myValue.CF?.threshold2 ?? 1}</p>
-                      <p>350</p>
-                    </div>
-                    <input type="range" min={1} max={350} step={2} value={myValue.CF?.threshold2 ?? 1} onChange={(e => setMyValue({...myValue, CF:{...myValue.CF, name: "Canny Filter", threshold2: Number(e.target.value), } }) )} className= "w-[80%] mx-auto cursor-pointer"/>
-                  </div>
-                </div>         
+                <span className="text-xs text-(--text-muted) font-mono">CV / 01</span>
+                {/* ^^kinda like a page number, but not really since i havent made a second page of configurations yet. but i will eventually. maybe. idk. */}
               </div>
-              <button type="button" onClick={() => setSubmitted(prev=>!prev)} className=" rounded-[5px] border-transparent p-2 
-              bg-(--bg-tertiary) text-(--text-secondary) 
-              transition-all duration-200 hover:bg-(--bg-secondary)">
-                Upload Image
+
+              <div className="flex flex-col gap-3">
+
+                <section className="flex flex-col gap-3 rounded-lg border border-(--border) bg-(--bg-secondary) p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-(--accent)"></span>
+                    <h4 className="font-semibold text-(--text-primary)">Gaussian Blur</h4>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm text-(--text-secondary)">Kernel Size</label>
+                    <div className="flex justify-between text-xs font-mono text-(--text-muted)">
+                      <span>1</span>
+                      <span className="text-(--accent) font-semibold">{myValue.GB?.kernalsize ?? 1}</span>
+                      <span>31</span>
+                    </div>
+                    <input type="range" name="gaussianBlurKernalSize" min={1} max={31} step={2} value={myValue.GB?.kernalsize ?? 1} onChange={(e) => setMyValue({...myValue, GB:{name: "Gaussian Blur", kernalsize: Number(e.target.value)}})} className="w-full cursor-pointer accent-(--accent)"/>
+                  </div>
+                </section>
+
+                <section className="flex flex-col gap-3 rounded-lg border border-(--border) bg-(--bg-secondary) p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-(--accent)"></span>
+                    <h4 className="font-semibold text-(--text-primary)">Median Blur</h4>
+                  </div>
+                  <div className="flex flex-col gap-2">
+                    <label className="text-sm text-(--text-secondary)">Kernel Size</label>
+                    <div className="flex justify-between text-xs font-mono text-(--text-muted)">
+                      <span>1</span>
+                      <span className="text-(--accent) font-semibold">{myValue.MB?.kernalsize ?? 1}</span>
+                      <span>31</span>
+                    </div>
+                    <input type="range" name="medianBlurKernalSize" min={1} max={31} step={2} value={myValue.MB?.kernalsize ?? 1} onChange={(e) => setMyValue({...myValue, MB:{name: "Median Blur", kernalsize: Number(e.target.value)}})} className="w-full cursor-pointer accent-(--accent)"/>
+                  </div>
+                </section>
+
+                <section className="flex flex-col gap-3 rounded-lg border border-(--border) bg-(--bg-secondary) p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-(--accent)"></span>
+                    <h4 className="font-semibold text-(--text-primary)">Bilateral Filter</h4>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm text-(--text-secondary)">Diameter</label>
+                      <div className="flex justify-between text-xs font-mono text-(--text-muted)">
+                        <span>1</span>
+                        <span className="text-(--accent) font-semibold">{myValue.BB?.diameter ?? 1}</span>
+                        <span>15</span>
+                      </div>
+                      <input type="range" name="bilateralBlurDiameter" min={1} max={15} step={2} value={myValue.BB?.diameter ?? 1} onChange={(e) => setMyValue({...myValue, BB:{...myValue.BB, name: "Bilateral Filter", diameter: Number(e.target.value)}})} className="w-full cursor-pointer accent-(--accent)"/>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm text-(--text-secondary)">Sigma Color</label>
+                      <div className="flex justify-between text-xs font-mono text-(--text-muted)">
+                        <span>1</span>
+                        <span className="text-(--accent) font-semibold">{myValue.BB?.sigmaColor ?? 1}</span>
+                        <span>150</span>
+                      </div>
+                      <input type="range" name="bilateralBlurSigmaColor" min={1} max={150} step={2} value={myValue.BB?.sigmaColor ?? 1} onChange={(e) => setMyValue({...myValue, BB:{...myValue.BB, name: "Bilateral Filter", sigmaColor: Number(e.target.value)}})} className="w-full cursor-pointer accent-(--accent)"/>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm text-(--text-secondary)">Sigma Space</label>
+                      <div className="flex justify-between text-xs font-mono text-(--text-muted)">
+                        <span>1</span>
+                        <span className="text-(--accent) font-semibold">{myValue.BB?.sigmaSpace ?? 1}</span>
+                        <span>150</span>
+                      </div>
+                      <input type="range" name="bilateralBlurSigmaSpace" min={1} max={150} step={2} value={myValue.BB?.sigmaSpace ?? 1} onChange={(e) => setMyValue({...myValue, BB:{...myValue.BB, name: "Bilateral Filter", sigmaSpace: Number(e.target.value)}})} className="w-full cursor-pointer accent-(--accent)"/>
+                    </div>
+                  </div>
+                </section>
+
+                <section className="flex flex-col gap-3 rounded-lg border border-(--border) bg-(--bg-secondary) p-3">
+                  <div className="flex items-center gap-2">
+                    <span className="h-2 w-2 rounded-full bg-(--accent)"></span>
+                    <h4 className="font-semibold text-(--text-primary)">Canny Filter</h4>
+                  </div>
+
+                  <div className="flex flex-col gap-3">
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm text-(--text-secondary)">Lower Threshold</label>
+                      <div className="flex justify-between text-xs font-mono text-(--text-muted)">
+                        <span>1</span>
+                        <span className="text-(--accent) font-semibold">{myValue.CF?.threshold1 ?? 1}</span>
+                        <span>250</span>
+                      </div>
+                      <input type="range" name="cannyFilterThreshold1" min={1} max={250} step={2} value={myValue.CF?.threshold1 ?? 1} onChange={(e) => setMyValue({...myValue, CF:{...myValue.CF, name: "Canny Filter", threshold1: Number(e.target.value)}})} className="w-full cursor-pointer accent-(--accent)"/>
+                    </div>
+
+                    <div className="flex flex-col gap-2">
+                      <label className="text-sm text-(--text-secondary)">Upper Threshold</label>
+                      <div className="flex justify-between text-xs font-mono text-(--text-muted)">
+                        <span>1</span>
+                        <span className="text-(--accent) font-semibold">{myValue.CF?.threshold2 ?? 1}</span>
+                        <span>350</span>
+                      </div>
+                      <input type="range" name="cannyFilterThreshold2" min={1} max={350} step={2} value={myValue.CF?.threshold2 ?? 1} onChange={(e) => setMyValue({...myValue, CF:{...myValue.CF, name: "Canny Filter", threshold2: Number(e.target.value)}})} className="w-full cursor-pointer accent-(--accent)"/>
+                    </div>
+                  </div>
+                </section>
+
+              </div>
+
+              <button type="submit" className="sticky bottom-0 mt-auto w-full rounded-lg border border-(--accent) bg-(--bg-tertiary) p-3 font-semibold text-(--text-primary) transition-all duration-200 hover:bg-(--accent-muted) hover:border-(--accent-hover) active:scale-[0.98]">
+                Apply Configuration
               </button>
-            </div>
+            </form>
           </section>
         </div>
   )
