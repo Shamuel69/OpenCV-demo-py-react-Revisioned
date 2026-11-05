@@ -1,7 +1,8 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import axios from 'axios'
 import './App.css'
 import { Routes, Route, Link, } from 'react-router-dom';
+
 
 function Home() {
   return (
@@ -21,13 +22,16 @@ function ImagePageBase() {
   const [uploadedImage, setUploadedImage] = useState(null);
   const [imageAttributes, setImageAttributes] = useState(null);
   const [error, setError] = useState(null);
+  const formRef = useRef(null);
 
   useEffect(() => {
     if (!image) return;
-    console.log("value: ", myValue, )
-    // honestly just make it submit when theres a value change. its going to be much easier that way 
     const timer = setTimeout(() => { 
+      console.log("value: ", myValue, )
+      formRef.current?.requestSubmit();
     }, 500);
+    setError(null);
+    return () => clearTimeout(timer);
   }, [myValue, image])
 
   useEffect(() =>{
@@ -39,6 +43,7 @@ function ImagePageBase() {
 
   const uploadImageOnSubmit = async (e) => {
     e.preventDefault();
+
     const formData = new FormData(e.target);
     const configs = Object.fromEntries(
       formData.entries()
@@ -62,15 +67,18 @@ function ImagePageBase() {
     
     formData.append("image", image);
     formData.append("config", JSON.stringify(fixedConfigs));
+      console.log("YES HELLO MASSIVE LEGEND HERE: ", fixedConfigs, )
 
     try{
       const res = await axios.post('http://localhost:8080/api/upload', formData, {responseType:"blob"})
-      console.log("Recieved processed image response! ", res.data.result)
+      const res2 = await axios.post('http://localhost:8080/api/imageattributes', formData, )
+      console.log("Recieved processed image response! ", res2.data)
       const imageURL = URL.createObjectURL(res.data);
       setUploadedImage(imageURL);
-      setImageAttributes(res.data.result)
+      setImageAttributes(res2.data)
     }catch (err){
       setError('Error uploading image:', err)
+      console.error('Error uploading image: ', err)
     }
   }
 
@@ -88,14 +96,19 @@ function ImagePageBase() {
   return (
     <div id="content" className="w-[95%] mx-auto flex flex-row gap-2.5">
           <section id="image_" className="flex-1 min-w-0">
-            <div className=" w-full  p-3">
-              <div className="w-full max-h-[720px] flex flex-row justify-between gap-2.5">
-                <div className="w-full h-full max-w-[50%] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
+            <div className=" w-full  relative p-3">
+              {error && (
+                
+                <div className="absolute top-0 left-0 w-full md:w-[90%]  bg-red-500 text-white flex items-center justify-center p-4 rounded-md">
+                  <p className="">{error}</p>
+                </div>
+              )}
+              <div className="w-full max-h-180  flex flex-row justify-between gap-2.5">
+                <div className="w-full h-full  max-w-[50%] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
                   <label htmlFor="fileInput" className=" flex flex-col">
                     Drop your image here: &nbsp; <input type="file" id="fileInput" accept="image/*"  onChange={handleImageChange} /> 
                   </label>
-                  
-                  {image && <img src={URL.createObjectURL(image)} alt="Dropped" className="object-scale-down  max-h-[520px] p-4" />}
+                  {image && <img src={URL.createObjectURL(image)} alt="Dropped" className="object-scale-down  max-h-130 p-4" />}
                   {imageAttributes && (
                     <div className="mt-4">
                       <h3>Image Attributes:</h3>
@@ -119,7 +132,7 @@ function ImagePageBase() {
             </div>
           </section>
           <section id="inputs" className=" w-[360px] shrink-0">
-            <form onSubmit={uploadImageOnSubmit} className="w-full h-full flex flex-col border-l border-(--border) bg-(--bg-primary) shadow-2xl p-4 gap-4 overflow-y-auto">
+            <form ref={formRef} onSubmit={uploadImageOnSubmit} className="w-full h-full flex flex-col border-l border-(--border) bg-(--bg-primary) shadow-2xl p-4 gap-4 overflow-y-auto">
               <div className="flex items-center justify-between border-b border-(--border) pb-3">
                 <div>
                   <h3 className="text-lg font-semibold text-(--text-primary)">Configurations</h3>

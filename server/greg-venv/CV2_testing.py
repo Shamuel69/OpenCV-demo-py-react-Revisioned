@@ -28,11 +28,6 @@ import cv2
 
 class CV2attributes:
     def __init__(self, image, config):
-        # kernal size should be sliders on the front end, and the user
-        # can adjust them to see the effect on the image in real time.
-        # The kernal size should be odd numbers only,
-        # and the user should be able to select from a range of odd 
-        # numbers for each dimension of the tuple.
         self.queue = ["GB", "MB", "BB", "CF"]
         self.config = config
         self.image = image
@@ -40,6 +35,7 @@ class CV2attributes:
         self.result = self.combined()
 
     def combined(self):
+        
         order = self.config.keys()
         new_order = []
         for key in self.queue:
