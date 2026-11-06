@@ -77,7 +77,7 @@ function ImagePageBase() {
       setUploadedImage(imageURL);
       setImageAttributes(res2.data)
     }catch (err){
-      setError('Error uploading image:', err)
+      setError( err)
       console.error('Error uploading image: ', err)
     }
   }
@@ -96,37 +96,87 @@ function ImagePageBase() {
   return (
     <div id="content" className="w-[95%] mx-auto flex flex-row gap-2.5">
           <section id="image_" className="flex-1 min-w-0">
-            <div className=" w-full  relative p-3">
+            <div className=" w-full  relative p-3 flex flex-col gap-4">
               {error && (
                 
-                <div className="absolute top-0 left-0 w-full md:w-[90%]  bg-red-500 text-white flex items-center justify-center p-4 rounded-md">
-                  <p className="">{error}</p>
+                <div className="w-full bg-red-500/10 border border-red-500/40 text-red-400 p-3 rounded-lg text-sm">
+                  <span className="font-semibold">Processing error:</span> {error}
                 </div>
               )}
-              <div className="w-full max-h-180  flex flex-row justify-between gap-2.5">
-                <div className="w-full h-full  max-w-[50%] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-dashed border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
-                  <label htmlFor="fileInput" className=" flex flex-col">
-                    Drop your image here: &nbsp; <input type="file" id="fileInput" accept="image/*"  onChange={handleImageChange} /> 
-                  </label>
-                  {image && <img src={URL.createObjectURL(image)} alt="Dropped" className="object-scale-down  max-h-130 p-4" />}
-                  {imageAttributes && (
-                    <div className="mt-4">
-                      <h3>Image Attributes:</h3>
-                      <p>Channels: {imageAttributes.Channels}</p>
-                      <p>Dimensions: {imageAttributes.Dimensions[0]} x {imageAttributes.Dimensions[1]}</p>
+              <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+                {/* input image */}
+                <div className="flex flex-col rounded-xl overflow-hidden border border-(--border) p-4" >
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-(--border)">
+                    <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                      Original Image: 
                     </div>
-                  )}
+                  </div>
+                  <div className="relative min-h-[320px] h-[520px] flex flex-col justify-center items-center hover:bg-(--bg-tertiary) transition-all duration-200 cursor-pointer" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
+                    <label htmlFor="fileInput" className="">
+                      {image ? (
+                        <span className="text-sm text-(--text-secondary) p-1.5 hover:border hover:border-blue-400 transition-all duration-200">Change your image</span>
+                      ) : (
+                        <span className="text-sm text-(--text-secondary) ">Drag and drop an image here, or click to select one</span>
+                      )}
+                      <input type="file" id="fileInput" accept="image/*" onChange={handleImageChange} className="hidden"/>
+                    </label>
+                    {image && <img src={URL.createObjectURL(image)} alt="Dropped" className="object-scale-down  max-h-130 p-4" />}
+
+                  </div>
+                  {/* image attributes */}
+
+                  <div className="flex flex-row justify-between gap-2 px-4 py-3 border-t border-(--border)">
+                  <div className="flex flex-row justify-between w-full  mx-auto  gap-2">
+                      <div className="rounded-lg bg-(--bg-tertiary) p-3">
+                        <p className="text-sm text-(--text-muted) mb-1">Dimensions</p>
+                        <p className="font-semibold">
+                          {imageAttributes
+                            ? `${imageAttributes.Dimensions[0]} × ${imageAttributes.Dimensions[1]}`
+                            : "-- x --"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-lg bg-(--bg-tertiary) p-3">
+                        <p className="text-sm text-(--text-muted) mb-1">Channels</p>
+                        <p className="font-semibold">
+                          {imageAttributes?.Channels ?? "--"}
+                        </p>
+                      </div>
+                  </div>
                 </div>
-                <div className="w-full h-full max-w-[50%] mx-auto bg-[--bg-tertiary] flex flex-col items-center justify-center p-4 border-2 border-solid border-gray-300 rounded-md" onDragOver={(e) => e.preventDefault()} onDrop={(e) => e.preventDefault()} >
-                  
-                  {!uploadedImage && (
-                  <label>
-                      Your image will show up here!
-                  </label>
-                  )}
-                  {uploadedImage && (
-                  <img src={uploadedImage} alt="Processed" className="object-scale-down  max-h-[520px] p-4"/>
-                  )}
+                </div>
+                <div className="flex flex-col rounded-xl overflow-hidden border border-(--border) p-4" >
+                  <div className="flex items-center justify-between px-4 py-3 border-b border-(--border)">
+                    <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full bg-blue-400"></span>
+                      Processed Image: 
+                    </div>
+                  </div>
+                  <div className="relative min-h-[320px] h-[520px] flex flex-col justify-center items-center" >
+                    {uploadedImage ? (
+                      <img src={uploadedImage} alt="Processed" className="object-scale-down  max-h-130 p-4" />
+                    ) : (
+                      <span className="text-sm text-(--text-secondary) ">Your processed image will appear here after applying configurations.</span>
+                    )}
+                  </div>
+                  <div className="flex flex-row justify-between gap-2 px-4 py-3 border-t border-(--border)">
+                  <div className="flex flex-row justify-between w-full  mx-auto  gap-2">
+                      <div className="rounded-lg bg-(--bg-tertiary) p-3">
+                        <p className="text-sm text-(--text-muted) mb-1">Status</p>
+                        <p className="font-semibold">
+                          {uploadedImage ? "Complete" : "Waiting"}
+                        </p>
+                      </div>
+
+                      <div className="rounded-lg bg-(--bg-tertiary) p-3">
+                        <p className="text-sm text-(--text-muted) mb-1">Output</p>
+                        <p className="font-semibold">
+                          {uploadedImage ? "PNG" : "--"}
+                        </p>
+                      </div>
+                  </div>
+                </div>
                 </div>
               </div>
             </div>
@@ -243,12 +293,7 @@ function ImagePageBase() {
                     </div>
                   </div>
                 </section>
-
               </div>
-
-              <button type="submit" className="sticky bottom-0 mt-auto w-full rounded-lg border border-(--accent) bg-(--bg-tertiary) p-3 font-semibold text-(--text-primary) transition-all duration-200 hover:bg-(--accent-muted) hover:border-(--accent-hover) active:scale-[0.98]">
-                Apply Configuration
-              </button>
             </form>
           </section>
         </div>

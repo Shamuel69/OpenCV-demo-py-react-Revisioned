@@ -1,32 +1,26 @@
 @import "tailwindcss";
 :root {
-  /* Backgrounds */
   --bg-primary: #10151D;
   --bg-secondary: #161F2B;
   --bg-tertiary: #202D3B;
   --bg-muted: #2B3949;
 
-  /* Text */
   --text-primary: #EDF3F8;
   --text-secondary: #C1CDD9;
   --text-tertiary: #91A1B2;
   --text-muted: #718397;
 
-  /* Borders */
   --border: #304052;
 
-  /* Accent */
   --accent: #55BCE0;
   --accent-hover: #79D0ED;
   --accent-muted: #244A5C;
 
-  /* Status */
   --success: #38B889;
   --warning: #E9AD58;
   --error: #EF6B73;
   --info: #55BCE0;
 
-  /* Typography */
   --sans: system-ui, 'Segoe UI', Roboto, sans-serif;
   --heading: system-ui, 'Segoe UI', Roboto, sans-serif;
   --mono: ui-monospace, Consolas, monospace;
